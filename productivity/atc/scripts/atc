@@ -24,8 +24,7 @@ usage: atc <command>
   contributions [date]     GitHub activity for a day, flagged tracked or not
   state-write <repo> <name>   write state note from stdin
   eod-write [date]         write the day's summary from stdin
-  save [message]           commit and push the data repo
-  sync [--dry-run]         update the board
+  sync [owner/repo] [--dry-run]  commit notes, update the board
   stale [days]             open cards untouched for N days (default 7)
   brief                    raw data for the morning brief
   report-data <repo> [--since D] [--last-session D]   facts for one repo (JSON, read-only)
@@ -46,7 +45,6 @@ case "$cmd" in
   contributions) cmd_contributions "$@" ;;
   state-write) cmd_state_write "$@" ;;
   eod-write) cmd_eod_write "$@" ;;
-  save) cmd_save "$@" ;;
   sync) cmd_sync "$@" ;;
   stale) cmd_stale "$@" ;;
   brief) cmd_brief ;;

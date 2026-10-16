@@ -63,7 +63,7 @@ cmd_setup() {
   local existing
   existing=$(gh project field-list "$n" --owner @me --format json --jq '.fields[].name')
   ensure_field "$n" "$existing" Stage SINGLE_SELECT "Inbox,Next up,In progress,Blocked,Done,Stale"
-  ensure_field "$n" "$existing" Repo TEXT
+  ensure_field "$n" "$existing" "Source repo" TEXT
   ensure_field "$n" "$existing" Triage TEXT
   ensure_field "$n" "$existing" Map TEXT
   ensure_field "$n" "$existing" "Wayfinder type" TEXT
@@ -76,7 +76,18 @@ cmd_setup() {
   data_commit "atc setup"
 
   echo "Done. Project: https://github.com/users/$user/projects/$n"
-  echo "One manual step: in the project, add a Board view, group it by Stage, and group rows by Repo."
+  cat <<'EOT'
+Manual step: set up the board view in the project.
+  1. Add a Board view.
+  2. Column field: Stage.
+  3. Group by: Source repo.
+  4. Sort by: Last touched.
+  5. Turn on Stage and the other fields (Triage, Map, Wayfinder type, Last touched) so they show on cards.
+  6. The Stale column appears only once a card is stale. Hide it if you want.
+  7. Hiding the built-in Status field is optional.
+Upgrading an old board: the first sync renames titles and archives map cards.
+EOT
+  echo "Next: run /atc add owner/repo for each repo to track. It syncs by itself."
 }
 
 cmd_add() {
@@ -96,6 +107,7 @@ cmd_add() {
     data_commit "add $repo"
     echo "Now tracking $repo."
   fi
+  cmd_sync "$repo"
   echo "Labels: $(gh label list -R "$repo" --limit 30 --json name --jq 'map(.name)|join(", ")')"
 }
 
