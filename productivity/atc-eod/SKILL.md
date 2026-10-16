@@ -15,7 +15,7 @@ Hard rules: never edit or close issues in tracked repos. "Today" is the user's l
 2. **Sessions.** Use `session_store_sql` to find sessions updated today (local day) whose `repository` is a tracked repo, excluding this session. Fetch their `turns` and `checkpoints`. Group by repo.
 3. **Jots.** `$ATC jots` for today's notes. Each has `repo=`, `session=`, and optional `issue=` or `map=`.
 4. **Activity.** `$ATC contributions`. It returns PRs, issues and commit counts, each flagged `tracked`.
-5. **Map to issues, per repo.** Match each session to an issue from issue numbers in its content, its branch, and linked PRs. A jot's `issue=` or `map=` tag overrides your guess. Read issues with `gh issue view` when you need context. Work that matches no issue goes in the repo's inbox.
+5. **Map to issues, per repo.** Match each session to an issue from issue numbers in its content, its branch, and linked PRs. A jot's `issue=` or `map=` tag overrides your guess. Read issues with `gh api repos/<repo>/issues/<n>` and `.../comments` when you need context. Comments hold decisions, so read them. Don't use `gh issue view`: it fails on repos with classic projects. Work that matches no issue goes in the repo's inbox.
 6. **Write state notes.** For each repo you touched, read `~/.atc/data/state/<owner>__<repo>/` first and keep existing sections. Then write with `$ATC state-write owner/repo <name>`, one note per map (`map-<N>`), one for loose issues (`loose`), and one for unmatched work (`inbox`). Format:
 
    ```
@@ -35,6 +35,6 @@ Hard rules: never edit or close issues in tracked repos. "Today" is the user's l
    - `$ATC stale 7` lists cards untouched for 7+ days.
    - List untracked repos from step 4 and ask whether to add each (`$ATC add`).
    - Show the user a short summary: per repo, left off and next. Ask to confirm with ask_user. Skip the question only with `--force`.
-9. **Publish.** `$ATC save "eod <date>"` then `$ATC sync`. Report counts and the board link.
+9. **Publish.** `$ATC sync`. Report counts and the board link.
 
 Safe to re-run the same day: state and summary are replaced, jots stay.

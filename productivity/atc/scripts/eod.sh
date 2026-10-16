@@ -58,7 +58,7 @@ cmd_contributions() { # [date]
       | map(. + {tracked: (.repo as $r | $t | index($r) != null)})'
 }
 
-# Write stdin to state/<repo>/<name>.md (no commit; run `atc save`).
+# Write stdin to state/<repo>/<name>.md (no commit; `atc sync` commits).
 cmd_state_write() { # repo name
   load_config
   [ $# -eq 2 ] || die "usage: atc state-write owner/repo name < file"
@@ -74,8 +74,6 @@ cmd_eod_write() { # [date]
   cat >"$DATA_DIR/logs/${1:-$(today)}.md"
   echo "wrote logs/${1:-$(today)}.md"
 }
-
-cmd_save() { load_config; data_commit "${1:-atc update $(today)}"; }
 
 last_eod_date() {
   local f
@@ -116,6 +114,9 @@ cmd_brief() {
     echo "### Closed since $since"
     gh api "repos/$repo/issues?state=closed&since=${since}T00:00:00Z&per_page=50" \
       --jq '.[] | select(has("pull_request")|not) | select(.closed_at[:10] >= "'"$since"'") | "- #\(.number) \(.title) (closed \(.closed_at[:10]))"' 2>/dev/null || true
+    echo "### Map progress"
+    open_maps "$repo" 2>/dev/null | jq -r '.[]
+      | "- Map #\(.number) \(.title): \(.done) of \(.total) done"' || true
     echo "### Board cards"
     idx_keys_for_repo "$repo" | while read -r k; do
       awk -F'\t' '$7=="open" {print "- " $1 " [" $6 "]"}' <<<"$(idx_get "$k")"

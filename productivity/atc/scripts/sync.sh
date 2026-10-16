@@ -23,7 +23,8 @@ cards_for_repo() { # repo me
         progress: (if .sub_issues_summary then "\(.sub_issues_summary.completed)/\(.sub_issues_summary.total)" else "" end),
         stale: (($l|index("wontfix") != null) or ((now - (.updated_at|fromdateiso8601)) > 7776000))
       }
-    | select(.is_map or .wf == "" or .mine or ((.blocked or .assigned)|not))
+    | select(.is_map|not)
+    | select(.wf == "" or .mine or ((.blocked or .assigned)|not))
     | . + {stage:
         (if .stale then "Stale"
          elif .blocked and .mine then "Blocked"
@@ -68,7 +69,7 @@ item_set() { # item field-name kind value
 set_all_fields() { # item repo row touched
   local item=$1 repo=$2 row=$3 touched=$4
   item_set "$item" Stage select "$(jq -r .stage <<<"$row")"
-  item_set "$item" Repo text "$repo"
+  item_set "$item" "Source repo" text "$repo"
   item_set "$item" Triage text "$(jq -r .triage <<<"$row")"
   item_set "$item" Map text "$(jq -r .map <<<"$row")"
   item_set "$item" "Wayfinder type" text "$(jq -r 'if .is_map then "map" else .wf end' <<<"$row")"
@@ -81,7 +82,7 @@ sync_repo() { # repo dry
   while read -r row; do
     [ -n "$row" ] || continue
     n=$(jq -r .number <<<"$row"); key="$repo#$n"; seen+="$key "
-    title="[$repo#$n] $(jq -r .title <<<"$row")"
+    title=$(jq -r .title <<<"$row")
     body=$(stub_body "$key" "$row")
     touched=$(jq -r .updated <<<"$row")
     stage=$(jq -r .stage <<<"$row")
@@ -130,21 +131,43 @@ sync_repo() { # repo dry
   done
 }
 
-cmd_sync() {
+# Sets DRY and ONLY from the sync arguments. ONLY gets the tracked spelling.
+parse_sync_args() {
+  DRY=0 ONLY=""
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --dry-run) DRY=1 ;;
+      */*) ONLY=$arg ;;
+      *) die "usage: atc sync [owner/repo] [--dry-run]" ;;
+    esac
+  done
+  [ -z "$ONLY" ] && return 0
+  local tracked
+  tracked=$(grep -Fxi -- "$ONLY" "$PROJECTS" | head -1) || true
+  [ -n "$tracked" ] || die "$ONLY is not tracked"
+  ONLY=$tracked
+}
+
+cmd_sync() { # [owner/repo] [--dry-run]
   load_config
-  local dry=0
-  [ "${1:-}" = "--dry-run" ] && dry=1
+  parse_sync_args "$@"
+  local dry=$DRY only=$ONLY
   DATA_FULL="$OWNER/$DATA_REPO"
   ME=$(gh api user --jq .login)
   PROJECT_ID=$(gh project view "$PROJECT_NUMBER" --owner @me --format json --jq .id)
   FIELDS=$(gh project field-list "$PROJECT_NUMBER" --owner @me --format json)
   N_NEW=0 N_UPD=0 N_DONE=0 N_HIDE=0
 
+  # Commit pending notes first so they go out even if the board work fails.
+  [ "$dry" = 1 ] || data_commit "atc update $(today)"
   local repo
-  for repo in $(tracked_repos); do
+  for repo in ${only:-$(tracked_repos)}; do
     echo "$repo"
     sync_repo "$repo" "$dry"
   done
   echo "Board: $N_NEW new, $N_UPD updated, $N_DONE done, $N_HIDE hidden$([ "$dry" = 1 ] && echo ' (dry run, nothing written)')"
+  echo "Board link: https://github.com/users/$OWNER/projects/$PROJECT_NUMBER"
+  # Second commit picks up index.tsv.
   [ "$dry" = 1 ] || data_commit "sync board $(today)"
 }
