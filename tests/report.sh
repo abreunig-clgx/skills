@@ -23,7 +23,7 @@ api() { echo "$2" >"$FAKE/api/$(sed 's|/|__|g' <<<"$1").json"; }
 # --- fixtures for org/alpha ---
 cat >"$FAKE/issues_open_org__alpha.json" <<'JSON'
 [
- {"number":1,"title":"Map: parcels","html_url":"https://x/1","updated_at":"2026-10-15T10:00:00Z","labels":[{"name":"wayfinder:map"}],"assignees":[],"sub_issues_summary":{"total":6,"completed":2}},
+ {"number":1,"title":"Map: parcels","html_url":"https://x/1","updated_at":"2026-10-15T10:00:00Z","labels":[{"name":"wayfinder:map"}],"assignees":[],"body":"Goal of the map","sub_issues_summary":{"total":6,"completed":2}},
  {"number":2,"title":"T2","html_url":"https://x/2","updated_at":"2026-10-15T10:00:00Z","labels":[{"name":"wayfinder:task"}],"assignees":[],"parent_issue_url":"https://api.github.com/repos/org/alpha/issues/1"},
  {"number":3,"title":"T3","html_url":"https://x/3","updated_at":"2026-10-15T10:00:00Z","labels":[{"name":"wayfinder:task"}],"assignees":[],"parent_issue_url":"https://api.github.com/repos/org/alpha/issues/1"},
  {"number":4,"title":"T4","html_url":"https://x/4","updated_at":"2026-10-15T10:00:00Z","labels":[{"name":"wayfinder:task"}],"assignees":[],"parent_issue_url":"https://api.github.com/repos/org/alpha/issues/1"},
@@ -35,8 +35,8 @@ JSON
 echo '[{"number":20,"title":"Old thing","html_url":"https://x/20","closed_at":"2026-10-14T12:00:00Z"},
       {"number":21,"title":"Older thing","html_url":"https://x/21","closed_at":"2026-10-01T12:00:00Z"},
       {"number":22,"title":"A PR","html_url":"https://x/22","closed_at":"2026-10-14T12:00:00Z","pull_request":{}}]' >"$FAKE/issues_closed_org__alpha.json"
-api "repos/org/alpha/pulls?state=all&sort=updated&direction=desc&per_page=30" '[
- {"number":30,"title":"Add tiles","html_url":"https://x/30","state":"closed","merged_at":"2026-10-14T09:00:00Z","updated_at":"2026-10-14T09:00:00Z","body":"Closes #2 and fixes #3"},
+api "repos/org/alpha/pulls?state=all&sort=updated&direction=desc&per_page=100&page=1" '[
+ {"number":30,"title":"Add tiles","html_url":"https://x/30","state":"closed","merged_at":"2026-10-14T09:00:00Z","updated_at":"2026-10-14T09:00:00Z","body":"## Why\nCloses #2 and fixes #3"},
  {"number":31,"title":"Wip","html_url":"https://x/31","state":"open","merged_at":null,"updated_at":"2026-10-15T09:00:00Z","body":null},
  {"number":32,"title":"Ancient","html_url":"https://x/32","state":"closed","merged_at":null,"updated_at":"2026-09-01T09:00:00Z","body":""}]'
 api "repos/org/alpha/issues/1" '{"number":1,"title":"Map: parcels","body":"Goal of the map","html_url":"https://x/1"}'
@@ -78,6 +78,10 @@ check "goal carries map body" j '.maps[0].body=="Goal of the map"'
 check "closed issues since, no PRs, no old ones" j '[.closed[].number]==[20]'
 check "recent PRs only" j '[.prs[].number]==[30,31]'
 check "PR keeps its state" j '.prs[0].state=="merged" and .prs[1].state=="open"'
+check "PR has a short plain description" j '.prs[0].summary=="Why Closes #2 and fixes #3"'
+check "PR with no body has empty description" j '.prs[1].summary==""'
+check "frontier covers inbox tickets" j '[.frontier[]|select(.number==7)]|length==1'
+check "map body comes from the list call" bash -c "! grep -q 'issues/1\$' '$FAKE/calls.log'"
 check "PR closing links parsed" j '.prs[0].closes==[2,3]'
 check "frontier excludes maps" j '[.frontier[].number] | index(1) == null'
 check "top 3 are detailed, rest are not" j '([.frontier[]|select(.detail)]|length)==3 and ([.frontier[]|select(.detail|not)]|length)>=1'
@@ -99,6 +103,12 @@ mkdir -p "$T/out"
 printf '## Goal\nShip parcels <fast> & well. See #2 and PR #30.\n\n## Next\n- #4 do it\n' \
   | (cd "$T/out" && "$ATC" report-html alpha) >"$T/o" 2>&1
 H="$T/out/atc-report-alpha.html"
+check "html fills the shipped template" grep -q 'class="bar"' "$H"
+check "html progress bar from done/total" grep -q 'width:33%' "$H"
+check "html wraps list items in a list" grep -q '<ul>' "$H"
+check "html links refs inside list items" grep -q '<li><a href="https://github.com/org/alpha/issues/4">#4</a> do it' "$H"
+check "html links PR refs" grep -q 'href="https://github.com/org/alpha/pull/30"' "$H"
+check "html has no leftover placeholders" bash -c "! grep -q '{{' '$H'"
 check "html file written in cwd" test -f "$H"
 check "html path is printed" grep -q "atc-report-alpha.html" "$T/o"
 check "html is escaped" grep -q 'Ship parcels &lt;fast&gt; &amp; well' "$H"

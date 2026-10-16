@@ -53,6 +53,8 @@ check "add refuses unreachable repo" bash -c "! '$ATC' add noaccess/x"
 check "add refuses repo without issues" bash -c "! '$ATC' add noissues/x"
 check "add rejects bad format" bash -c "! '$ATC' add justname"
 check "add syncs the new repo" test "$(calls 'repos/org/a/issues')" -gt 0
+check "add with different case does not die" bash -c "'$ATC' add org/A"
+check "add with different case tracks once" test "$(grep -ci '^org/a$' "$ATC_DATA_DIR/projects.txt")" = 1
 check "add shows labels" bash -c "'$ATC' add org/a | grep -q ready-for-agent"
 
 # --- jot ---

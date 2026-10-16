@@ -56,3 +56,11 @@ idx_del() {
 }
 
 idx_keys_for_repo() { [ -f "$INDEX" ] && awk -F'\t' -v p="$1#" 'index($1,p)==1 {print $1}' "$INDEX" || true; }
+
+# Open "wayfinder:map" issues of a repo, as a JSON array with goal body and progress.
+open_maps() { # repo
+  gh api "repos/$1/issues?state=open&per_page=100" --paginate | jq -sc 'add // [] | map(
+    select(has("pull_request")|not) | select(.labels|map(.name)|index("wayfinder:map"))
+    | {number, title, url: .html_url, body: (.body // ""),
+       done: (.sub_issues_summary.completed // 0), total: (.sub_issues_summary.total // 0)})'
+}

@@ -115,9 +115,8 @@ cmd_brief() {
     gh api "repos/$repo/issues?state=closed&since=${since}T00:00:00Z&per_page=50" \
       --jq '.[] | select(has("pull_request")|not) | select(.closed_at[:10] >= "'"$since"'") | "- #\(.number) \(.title) (closed \(.closed_at[:10]))"' 2>/dev/null || true
     echo "### Map progress"
-    gh api "repos/$repo/issues?state=open&per_page=100" --paginate 2>/dev/null | jq -s -r 'add // [] | .[]
-      | select(.labels|map(.name)|index("wayfinder:map"))
-      | "- Map #\(.number) \(.title): \(.sub_issues_summary.completed // 0) of \(.sub_issues_summary.total // 0) done"' || true
+    open_maps "$repo" 2>/dev/null | jq -r '.[]
+      | "- Map #\(.number) \(.title): \(.done) of \(.total) done"' || true
     echo "### Board cards"
     idx_keys_for_repo "$repo" | while read -r k; do
       awk -F'\t' '$7=="open" {print "- " $1 " [" $6 "]"}' <<<"$(idx_get "$k")"

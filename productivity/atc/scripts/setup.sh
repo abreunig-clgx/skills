@@ -100,7 +100,7 @@ cmd_add() {
   [ "$(jq -r .hasIssuesEnabled <<<"$info")" = true ] || die "$repo has GitHub Issues turned off; ATC needs them"
   repo=$(jq -r .nameWithOwner <<<"$info")
 
-  if grep -Fxq "$repo" "$PROJECTS"; then
+  if grep -Fxqi -- "$repo" "$PROJECTS"; then
     echo "$repo is already tracked."
   else
     echo "$repo" >>"$PROJECTS"

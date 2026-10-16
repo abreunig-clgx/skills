@@ -131,17 +131,28 @@ sync_repo() { # repo dry
   done
 }
 
-cmd_sync() { # [owner/repo] [--dry-run]
-  load_config
-  local dry=0 only="" arg
+# Sets DRY and ONLY from the sync arguments. ONLY gets the tracked spelling.
+parse_sync_args() {
+  DRY=0 ONLY=""
+  local arg
   for arg in "$@"; do
     case "$arg" in
-      --dry-run) dry=1 ;;
-      */*) only=$arg ;;
+      --dry-run) DRY=1 ;;
+      */*) ONLY=$arg ;;
       *) die "usage: atc sync [owner/repo] [--dry-run]" ;;
     esac
   done
-  [ -z "$only" ] || grep -Fxq "$only" "$PROJECTS" || die "$only is not tracked"
+  [ -z "$ONLY" ] && return 0
+  local tracked
+  tracked=$(grep -Fxi -- "$ONLY" "$PROJECTS" | head -1) || true
+  [ -n "$tracked" ] || die "$ONLY is not tracked"
+  ONLY=$tracked
+}
+
+cmd_sync() { # [owner/repo] [--dry-run]
+  load_config
+  parse_sync_args "$@"
+  local dry=$DRY only=$ONLY
   DATA_FULL="$OWNER/$DATA_REPO"
   ME=$(gh api user --jq .login)
   PROJECT_ID=$(gh project view "$PROJECT_NUMBER" --owner @me --format json --jq .id)
