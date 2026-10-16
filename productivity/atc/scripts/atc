@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# atc: cross-project board, jots, end-of-day data. See the atc skills.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# shellcheck source=lib.sh
+. "$HERE/lib.sh"
+. "$HERE/setup.sh"
+. "$HERE/eod.sh"
+. "$HERE/sync.sh"
+
+usage() {
+  cat <<'EOF'
+usage: atc <command>
+
+  setup [--yes]            create data repo and board (dry run without --yes)
+  add <owner/repo>         track a repo
+  remove <owner/repo>      stop tracking a repo
+  status                   cards per stage, stale cards
+  jot [--issue N] [--map N] [--repo o/r] "note"
+  jots [date]              print a day's jots
+  projects                 list tracked repos
+  contributions [date]     GitHub activity for a day, flagged tracked or not
+  state-write <repo> <name>   write state note from stdin
+  eod-write [date]         write the day's summary from stdin
+  save [message]           commit and push the data repo
+  sync [--dry-run]         update the board
+  stale [days]             open cards untouched for N days (default 7)
+  brief                    raw data for the morning brief
+EOF
+}
+
+cmd=${1:-}
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  setup) cmd_setup "$@" ;;
+  add) cmd_add "$@" ;;
+  remove) cmd_remove "$@" ;;
+  status) cmd_status ;;
+  jot) cmd_jot "$@" ;;
+  jots) cmd_jots "$@" ;;
+  projects) cmd_projects ;;
+  contributions) cmd_contributions "$@" ;;
+  state-write) cmd_state_write "$@" ;;
+  eod-write) cmd_eod_write "$@" ;;
+  save) cmd_save "$@" ;;
+  sync) cmd_sync "$@" ;;
+  stale) cmd_stale "$@" ;;
+  brief) cmd_brief ;;
+  *) usage; [ -z "$cmd" ] || exit 1 ;;
+esac

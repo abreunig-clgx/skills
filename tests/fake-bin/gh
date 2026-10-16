@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Fake gh for tests. State lives in $FAKE. Every call is logged to $FAKE/calls.log.
+set -euo pipefail
+: "${FAKE:?}"
+echo "$*" >>"$FAKE/calls.log"
+
+args=("$@")
+JQ=""
+for ((i = 0; i < ${#args[@]}; i++)); do
+  [ "${args[i]}" = "--jq" ] && JQ="${args[i + 1]}"
+  [ "${args[i]}" = "-q" ] && JQ="${args[i + 1]}"
+done
+emit() { if [ -n "$JQ" ]; then jq -r "$JQ"; else cat; fi; }
+next() { # counter name
+  local f="$FAKE/counter.$1" n
+  n=$(($(cat "$f" 2>/dev/null || echo 0) + 1)); echo "$n" >"$f"; echo "$n"
+}
+
+case "$1 ${2:-}" in
+  "auth status")
+    if [ -n "${FAKE_NO_PROJECT_SCOPE:-}" ]; then echo "Token scopes: 'gist', 'repo'" >&2
+    else echo "  - Token scopes: 'gist', 'project', 'repo'" >&2; fi ;;
+  "repo view")
+    r=$3
+    if [ "$r" = noaccess/x ]; then echo "Could not resolve to a Repository" >&2; exit 1; fi
+    if [ "$r" = noissues/x ]; then echo '{"nameWithOwner":"noissues/x","hasIssuesEnabled":false}' | emit; exit 0; fi
+    grep -Fxq "$r" "$FAKE/repos" 2>/dev/null || [[ "$r" == org/* ]] || exit 1
+    jq -n --arg r "$r" '{nameWithOwner:$r,hasIssuesEnabled:true}' | emit ;;
+  "repo create") echo "$3" >>"$FAKE/repos" ;;
+  "repo clone")
+    [ -d "$FAKE/remote.git" ] || git init -q --bare -b main "$FAKE/remote.git"
+    git clone -q "$FAKE/remote.git" "$4" 2>/dev/null ;;
+  "label list") echo '[{"name":"bug"},{"name":"ready-for-agent"}]' | emit ;;
+  "project list")
+    if [ -f "$FAKE/project" ]; then echo '{"projects":[{"number":7,"title":"ATC"}]}' | emit
+    else echo '{"projects":[]}' | emit; fi ;;
+  "project create") touch "$FAKE/project"; echo '{"number":7}' | emit ;;
+  "project view") echo '{"id":"PID"}' | emit ;;
+  "project field-list")
+    [ -f "$FAKE/fields.json" ] || echo '[]' >"$FAKE/fields.json"
+    jq '{fields: .}' "$FAKE/fields.json" | emit ;;
+  "project field-create")
+    name="" opts=""
+    for ((i = 0; i < ${#args[@]}; i++)); do
+      [ "${args[i]}" = "--name" ] && name="${args[i + 1]}"
+      [ "${args[i]}" = "--single-select-options" ] && opts="${args[i + 1]}"
+    done
+    [ -f "$FAKE/fields.json" ] || echo '[]' >"$FAKE/fields.json"
+    jq --arg n "$name" --arg o "$opts" '. + [{id:("F_"+$n),name:$n,options:(if $o=="" then [] else ($o|split(",")|map({id:("O_"+.),name:.})) end)}]' \
+      "$FAKE/fields.json" >"$FAKE/f.tmp" && mv "$FAKE/f.tmp" "$FAKE/fields.json" ;;
+  "project link") ;;
+  "project item-add") echo "{\"id\":\"ITEM_$(next item)\"}" | emit ;;
+  "project item-edit" | "project item-archive") ;;
+  "issue create")
+    echo "https://github.com/me/me-atc/issues/$(next stub)" ;;
+  "issue edit" | "issue close" | "issue reopen") ;;
+  "api user")
+    echo '{"login":"me","id":42}' | emit ;;
+  "api graphql") emit <"$FAKE/graphql.json" ;;
+  "api repos/"*)
+    path=$2
+    if [[ "$path" =~ ^repos/([^/]+/[^/]+)/issues/([0-9]+)$ ]]; then
+      key="${BASH_REMATCH[1]}#${BASH_REMATCH[2]}"
+      if grep -Fxq "$key" "$FAKE/closed" 2>/dev/null; then echo '{"state":"closed"}' | emit; else echo '{"state":"open"}' | emit; fi
+    elif [[ "$path" =~ ^repos/([^/]+/[^/]+)/issues\?state=(open|closed) ]]; then
+      f="$FAKE/issues_${BASH_REMATCH[2]}_${BASH_REMATCH[1]//\//__}.json"
+      if [ -f "$f" ]; then emit <"$f"; else echo '[]' | emit; fi
+    else echo "fake gh: unhandled $*" >&2; exit 2; fi ;;
+  *) echo "fake gh: unhandled $*" >&2; exit 2 ;;
+esac

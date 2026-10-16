@@ -19,3 +19,11 @@ for d in ~/skills/productivity/atc*; do ln -sfn "$d" ~/.agents/skills/"$(basenam
 Then run `/atc` in an agent session to set up.
 
 Update later with `git -C ~/skills pull`. The symlinks pick up changes.
+
+## Test
+
+```bash
+bash tests/run.sh
+```
+
+Runs the scripts against a fake `gh`. No network, nothing created.
