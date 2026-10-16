@@ -8,6 +8,7 @@ HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 . "$HERE/setup.sh"
 . "$HERE/eod.sh"
 . "$HERE/sync.sh"
+. "$HERE/report.sh"
 
 usage() {
   cat <<'EOF'
@@ -27,6 +28,8 @@ usage: atc <command>
   sync [--dry-run]         update the board
   stale [days]             open cards untouched for N days (default 7)
   brief                    raw data for the morning brief
+  report-data <repo> [--since D] [--last-session D]   facts for one repo (JSON, read-only)
+  report-html <repo>       write ./atc-report-<repo>.html from report text on stdin
 EOF
 }
 
@@ -47,5 +50,7 @@ case "$cmd" in
   sync) cmd_sync "$@" ;;
   stale) cmd_stale "$@" ;;
   brief) cmd_brief ;;
+  report-data) cmd_report_data "$@" ;;
+  report-html) cmd_report_html "$@" ;;
   *) usage; [ -z "$cmd" ] || exit 1 ;;
 esac

@@ -162,4 +162,5 @@ check "remove keeps state notes" test -f "$ATC_DATA_DIR/state/org__a/map-1.md"
 check "remove of unknown repo fails" bash -c "! '$ATC' remove org/a"
 
 echo "passed: $pass, failed: $fail"
+"$ROOT/tests/report.sh" || fail=$((fail + 1))
 [ "$fail" = 0 ]

@@ -10,7 +10,7 @@ Read-only. Never run `sync`, `save`, `jot` or anything that writes.
 ## Steps
 
 1. Run `$ATC brief`. It prints, per tracked repo: issues closed since the last EOD (7 days if none), open board cards with their stage, state notes (left off, next, blockers), and jots since the last EOD.
-2. For each repo, read the open map issues and open cards with `gh issue view <n> -R <repo>` where the brief isn't enough to understand them.
+2. For each repo, read the open map issues and open cards with `gh api repos/<repo>/issues/<n>` where the brief isn't enough to understand them, and read every comment with `gh api repos/<repo>/issues/<n>/comments`: decisions and answers live there. Don't use `gh issue view`; it fails on repos that still have classic projects.
 3. Write the brief in plain language. Don't paste titles or ticket text.
 
 ## Brief format, per repo
