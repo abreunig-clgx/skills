@@ -131,21 +131,32 @@ sync_repo() { # repo dry
   done
 }
 
-cmd_sync() {
+cmd_sync() { # [owner/repo] [--dry-run]
   load_config
-  local dry=0
-  [ "${1:-}" = "--dry-run" ] && dry=1
+  local dry=0 only="" arg
+  for arg in "$@"; do
+    case "$arg" in
+      --dry-run) dry=1 ;;
+      */*) only=$arg ;;
+      *) die "usage: atc sync [owner/repo] [--dry-run]" ;;
+    esac
+  done
+  [ -z "$only" ] || grep -Fxq "$only" "$PROJECTS" || die "$only is not tracked"
   DATA_FULL="$OWNER/$DATA_REPO"
   ME=$(gh api user --jq .login)
   PROJECT_ID=$(gh project view "$PROJECT_NUMBER" --owner @me --format json --jq .id)
   FIELDS=$(gh project field-list "$PROJECT_NUMBER" --owner @me --format json)
   N_NEW=0 N_UPD=0 N_DONE=0 N_HIDE=0
 
+  # Commit pending notes first so they go out even if the board work fails.
+  [ "$dry" = 1 ] || data_commit "atc update $(today)"
   local repo
-  for repo in $(tracked_repos); do
+  for repo in ${only:-$(tracked_repos)}; do
     echo "$repo"
     sync_repo "$repo" "$dry"
   done
   echo "Board: $N_NEW new, $N_UPD updated, $N_DONE done, $N_HIDE hidden$([ "$dry" = 1 ] && echo ' (dry run, nothing written)')"
+  echo "Board link: https://github.com/users/$OWNER/projects/$PROJECT_NUMBER"
+  # Second commit picks up index.tsv.
   [ "$dry" = 1 ] || data_commit "sync board $(today)"
 }

@@ -3,7 +3,7 @@ name: atc-start
 description: Morning brief across tracked projects. Shows what each map is for, the aim of each open issue, what closed since last time, and where you left off. Use when the user says "/atc-start", "where did I leave off", "morning brief", or "what's next".
 ---
 
-Read-only. Never run `sync`, `save`, `jot` or anything that writes.
+Read-only. Never run `sync`, `jot` or anything that writes.
 
 `ATC=~/.agents/skills/atc/scripts/atc`
 

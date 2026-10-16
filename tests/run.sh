@@ -52,6 +52,7 @@ check "add tracks repo once" test "$(grep -c '^org/a$' "$ATC_DATA_DIR/projects.t
 check "add refuses unreachable repo" bash -c "! '$ATC' add noaccess/x"
 check "add refuses repo without issues" bash -c "! '$ATC' add noissues/x"
 check "add rejects bad format" bash -c "! '$ATC' add justname"
+check "add syncs the new repo" test "$(calls 'repos/org/a/issues')" -gt 0
 check "add shows labels" bash -c "'$ATC' add org/a | grep -q ready-for-agent"
 
 # --- jot ---
@@ -132,6 +133,23 @@ check "closed upstream moves card to Done" test "$(idx 'org/a#2' 6)" = Done
 check "closed upstream closes the stub" test "$(idx 'org/a#2' 7)" = closed
 check "open but hidden card is archived" test "$(idx 'org/a#9' 7)" = archived
 
+# sync commits before and after the board work
+"$ATC" state-write org/a pre-sync >/dev/null <<<"note"
+"$ATC" sync >/dev/null 2>&1
+subjects=$(git -C "$ATC_DATA_DIR" log --format=%s -3)
+check "sync commits pending notes first" grep -q "atc update" <<<"$subjects"
+
+# repo argument limits sync to that repo
+echo org/b >>"$ATC_DATA_DIR/projects.txt"
+: >"$FAKE/calls.log"
+"$ATC" sync org/a >/dev/null 2>&1
+check "sync with repo skips other repos" test "$(calls 'repos/org/b')" = 0
+check "sync with repo reads that repo" test "$(calls 'repos/org/a')" -gt 0
+check "sync refuses untracked repo" bash -c "! '$ATC' sync org/zzz"
+check "sync accepts --dry-run with repo" bash -c "'$ATC' sync --dry-run org/a | grep -q dry"
+grep -Fxv org/b "$ATC_DATA_DIR/projects.txt" >"$T/p" && mv "$T/p" "$ATC_DATA_DIR/projects.txt"
+check "sync prints the board link" bash -c "'$ATC' sync | grep -q 'projects/7'"
+
 # status and stale
 "$ATC" status >"$T/o" 2>&1
 check "status lists the repo" grep -q "== org/a" "$T/o"
@@ -152,8 +170,9 @@ check "contributions flag unknown repos" jq -e 'map(select(.repo=="org/new"))|al
 "$ATC" eod-write >/dev/null <<<"# EOD v2"
 check "eod-write replaces the day's summary" test "$(cat "$ATC_DATA_DIR/logs/2026-10-16.md")" = "# EOD v2"
 check "eod-write leaves jots alone" test "$(wc -l <"$J")" = 3
-"$ATC" save "eod" >/dev/null 2>&1
-check "save pushes the summary" git --git-dir="$FAKE/remote.git" show main:logs/2026-10-16.md
+check "save command is gone" bash -c "! '$ATC' save x"
+"$ATC" sync >/dev/null 2>&1
+check "sync pushes the summary" git --git-dir="$FAKE/remote.git" show main:logs/2026-10-16.md
 
 export ATC_DATE=2026-10-17
 echo '[{"number":9,"title":"Done thing","closed_at":"2026-10-16T12:00:00Z"}]' >"$FAKE/issues_closed_org__a.json"

@@ -87,6 +87,7 @@ Manual step: set up the board view in the project.
   7. Hiding the built-in Status field is optional.
 Upgrading an old board: the first sync renames titles and archives map cards.
 EOT
+  echo "Next: run /atc add owner/repo for each repo to track. It syncs by itself."
 }
 
 cmd_add() {
@@ -106,6 +107,7 @@ cmd_add() {
     data_commit "add $repo"
     echo "Now tracking $repo."
   fi
+  cmd_sync "$repo"
   echo "Labels: $(gh label list -R "$repo" --limit 30 --json name --jq 'map(.name)|join(", ")')"
 }
 
