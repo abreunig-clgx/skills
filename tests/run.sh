@@ -35,11 +35,13 @@ check "setup without scope creates nothing" test ! -f "$ATC_CONFIG"
 "$ATC" setup --yes >"$T/o" 2>&1
 check "setup writes config" grep -q "PROJECT_NUMBER=7" "$ATC_CONFIG"
 check "setup creates private data repo" grep -q "repo create me/me-atc --private" "$FAKE/calls.log"
-for f in Stage Repo Triage Map "Wayfinder type" "Last touched"; do
+for f in Stage "Source repo" Triage Map "Wayfinder type" "Last touched"; do
   check "setup creates field $f" jq -e --arg f "$f" 'map(select(.name==$f))|length==1' "$FAKE/fields.json"
 done
 check "setup pushes seed files" git --git-dir="$FAKE/remote.git" show main:projects.txt
-"$ATC" setup --yes >/dev/null 2>&1
+out=$("$ATC" setup --yes 2>&1)
+check "setup never creates a Repo field" jq -e 'map(select(.name=="Repo"))|length==0' "$FAKE/fields.json"
+check "setup prints the view checklist" grep -q "Group by: Source repo" <<<"$out"
 check "setup is idempotent (one project)" test "$(calls 'project create')" = 1
 check "setup is idempotent (no duplicate fields)" jq -e 'length==6' "$FAKE/fields.json"
 
@@ -81,12 +83,12 @@ cat >"$FAKE/issues_open_org__a.json" <<'JSON'
 JSON
 
 "$ATC" sync --dry-run >"$T/o" 2>&1
-check "dry run reports new cards" grep -q "6 new" "$T/o"
+check "dry run reports new cards" grep -q "5 new" "$T/o"
 check "dry run creates nothing" test "$(calls 'issue create')" = 0
 
 "$ATC" sync >"$T/o" 2>&1
-check "sync creates 6 cards" grep -q "6 new" "$T/o"
-check "map parent is a card" test -n "$(idx 'org/a#1' 2)"
+check "sync creates 5 cards" grep -q "5 new" "$T/o"
+check "map issue is not a card" test -z "$(idx 'org/a#1' 1)"
 check "frontier child is a card, Next up" test "$(idx 'org/a#2' 6)" = "Next up"
 check "blocked child is hidden" test -z "$(idx 'org/a#3' 1)"
 check "child assigned to someone else is hidden" test -z "$(idx 'org/a#4' 1)"
@@ -95,9 +97,10 @@ check "loose ticket shows even if assigned elsewhere" test "$(idx 'org/a#6' 6)" 
 check "wontfix goes to Stale" test "$(idx 'org/a#7' 6)" = Stale
 check "pull requests are skipped" test -z "$(idx 'org/a#8' 1)"
 check "untriaged loose issue goes to Inbox" test "$(idx 'org/a#9' 6)" = Inbox
-check "stub title has repo and number" grep -q 'issue create -R me/me-atc --title \[org/a#2\] Research tiles' "$FAKE/calls.log"
+check "card title is the ticket title only" grep -q 'issue create -R me/me-atc --title Research tiles --body' "$FAKE/calls.log"
 check "triage field uses canonical label" grep -q 'item-edit .*--text ready-for-human' "$FAKE/calls.log"
 check "map name set on child" grep -q -- '--text #1 Map: parcels' "$FAKE/calls.log"
+check "source repo field is set" grep -q -- '--text org/a' "$FAKE/calls.log"
 check "sync commits index" git --git-dir="$FAKE/remote.git" show main:index.tsv
 
 before=$(calls 'issue create')
@@ -115,6 +118,11 @@ MD
 "$ATC" sync >"$T/o" 2>&1
 check "state note updates only its card" grep -q "1 updated" "$T/o"
 check "card body carries left-off text" grep -q 'Left off: compared two tile schemes' "$FAKE/calls.log"
+
+# an old map card (from an earlier version) is archived by the next sync
+printf 'org/a#1\t50\tITEM1\tsig\t2026-10-15\tNext up\topen\n' >>"$ATC_DATA_DIR/index.tsv"
+"$ATC" sync >"$T/o" 2>&1
+check "existing map card is archived" test "$(idx 'org/a#1' 7)" = archived
 
 # closing and hiding
 jq 'map(select(.number != 2 and .number != 9))' "$FAKE/issues_open_org__a.json" >"$T/x" && mv "$T/x" "$FAKE/issues_open_org__a.json"

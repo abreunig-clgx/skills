@@ -23,7 +23,8 @@ cards_for_repo() { # repo me
         progress: (if .sub_issues_summary then "\(.sub_issues_summary.completed)/\(.sub_issues_summary.total)" else "" end),
         stale: (($l|index("wontfix") != null) or ((now - (.updated_at|fromdateiso8601)) > 7776000))
       }
-    | select(.is_map or .wf == "" or .mine or ((.blocked or .assigned)|not))
+    | select(.is_map|not)
+    | select(.wf == "" or .mine or ((.blocked or .assigned)|not))
     | . + {stage:
         (if .stale then "Stale"
          elif .blocked and .mine then "Blocked"
@@ -68,7 +69,7 @@ item_set() { # item field-name kind value
 set_all_fields() { # item repo row touched
   local item=$1 repo=$2 row=$3 touched=$4
   item_set "$item" Stage select "$(jq -r .stage <<<"$row")"
-  item_set "$item" Repo text "$repo"
+  item_set "$item" "Source repo" text "$repo"
   item_set "$item" Triage text "$(jq -r .triage <<<"$row")"
   item_set "$item" Map text "$(jq -r .map <<<"$row")"
   item_set "$item" "Wayfinder type" text "$(jq -r 'if .is_map then "map" else .wf end' <<<"$row")"
@@ -81,7 +82,7 @@ sync_repo() { # repo dry
   while read -r row; do
     [ -n "$row" ] || continue
     n=$(jq -r .number <<<"$row"); key="$repo#$n"; seen+="$key "
-    title="[$repo#$n] $(jq -r .title <<<"$row")"
+    title=$(jq -r .title <<<"$row")
     body=$(stub_body "$key" "$row")
     touched=$(jq -r .updated <<<"$row")
     stage=$(jq -r .stage <<<"$row")
