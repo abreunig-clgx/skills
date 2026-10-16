@@ -10,12 +10,13 @@ My personal agent skills, grouped by folder.
 
 ATC answers one question: **where did I leave off, and what do I do next?** It works across many GitHub repos.
 
-It does four things:
+It does five things:
 
 - Keeps a private data repo with your daily notes and a "left off / next" note per issue.
 - Shows open, actionable issues from all your repos on one GitHub Project board.
 - Lets you jot a note at any time, tied to the session you're in.
 - Gives you an end-of-day routine and a morning brief.
+- Updates the board on demand and writes a one-repo report.
 
 It works only with GitHub Issues. Matt Pocock's wayfinder and triage skills are recommended but not required. ATC never edits or closes issues in your project repos.
 
@@ -26,7 +27,9 @@ It works only with GitHub Issues. Matt Pocock's wayfinder and triage skills are 
 | `/atc` | Once, then as needed | Setup, add or remove a repo, status |
 | `/atc-jot` | Any time | Saves a note tied to this session |
 | `/atc-eod` | End of day, in a fresh session | Retro of the day, updates notes and the board |
-| `/atc-start` | Morning | Plain-language brief, then pick what to work on |
+| `/atc-start` | Morning | Plain-language brief. Read-only. It stops after the brief |
+| `/atc-sync` | Any time | Updates the board now. No questions asked |
+| `/atc-report <repo>` | Any time | Report on one repo. Add `--show-me` for an HTML page |
 
 ## Part 1: One-time setup
 
@@ -62,7 +65,7 @@ mkdir -p ~/.agents/skills
 for d in ~/skills/productivity/atc*; do ln -sfn "$d" ~/.agents/skills/"$(basename "$d")"; done
 ```
 
-This links four skills: `atc`, `atc-jot`, `atc-eod`, `atc-start`. Start a new agent session so they load.
+This links six skills: `atc`, `atc-jot`, `atc-eod`, `atc-start`, `atc-sync`, `atc-report`. Start a new agent session so they load.
 
 Update later with `git -C ~/skills pull`. The links pick up changes.
 
@@ -72,7 +75,7 @@ In an agent session, run `/atc`. The agent first runs a dry run and shows you th
 
 - A **private** repo `<your-username>-atc` (your data).
 - A local copy at `~/.atc/data`.
-- A GitHub Project named **ATC**, linked to that repo, with these fields: Stage, Repo, Triage, Map, Wayfinder type, Last touched.
+- A GitHub Project named **ATC**, linked to that repo, with these fields: Stage, Source repo, Triage, Map, Wayfinder type, Last touched.
 
 Confirm, and the agent runs the real setup. It's safe to run again: it never duplicates anything.
 
@@ -89,12 +92,19 @@ GitHub has no API for views, so this one step is manual. Setup prints the projec
 
 1. Open the project: `https://github.com/users/<your-username>/projects/<number>`. Or go to your profile, then **Projects**, then **ATC**.
 2. Click **+ New view** and pick **Board**. Name it `ATC board`.
-3. Open the view menu (the small arrow on the view tab) and set **Column field** to **Stage**. You get columns: Inbox, Next up, In progress, Blocked, Done, Stale.
-4. In the same menu, set **Group by** to **Repo**. Each project becomes a lane.
-5. Set **Sort** to **Last touched**, descending.
-6. Open **Fields** and show Triage, Map, Wayfinder type and Last touched on the cards.
-7. Optional: hide the **Stale** column from the view (column menu, **Hide from view**). The cards stay in the project.
-8. Optional: hide the built-in **Status** field. ATC uses **Stage** instead.
+3. Follow the checklist that `atc setup --yes` prints. Here it is, word for word:
+
+```
+Manual step: set up the board view in the project.
+  1. Add a Board view.
+  2. Column field: Stage.
+  3. Group by: Source repo.
+  4. Sort by: Last touched.
+  5. Turn on Stage and the other fields (Triage, Map, Wayfinder type, Last touched) so they show on cards.
+  6. The Stale column appears only once a card is stale. Hide it if you want.
+  7. Hiding the built-in Status field is optional.
+Upgrading an old board: the first sync renames titles and archives map cards.
+```
 
 ### Step 6. Add your projects
 
@@ -102,9 +112,9 @@ GitHub has no API for views, so this one step is manual. Setup prints the projec
 /atc add owner/repo
 ```
 
-Do this for each repo you want on the board. It checks that the repo is reachable, that Issues are on, and shows its labels. If you get an access or SSO error, authorize your token for that organization (GitHub, **Settings**, **Applications**, or the SSO prompt) and retry.
+Do this for each repo you want on the board. It checks that the repo is reachable and that Issues are on. It then syncs that repo to the board by itself and shows its labels. If you get an access or SSO error, authorize your token for that organization (GitHub, **Settings**, **Applications**, or the SSO prompt) and retry.
 
-To stop tracking: `/atc remove owner/repo`. Its cards leave the board. Your logs and notes stay.
+To stop tracking: `/atc remove owner/repo`. Its cards are archived on the board. Your logs and notes stay.
 
 ## Part 2: Daily use
 
@@ -116,7 +126,7 @@ To stop tracking: `/atc remove owner/repo`. Its cards leave the board. Your logs
 
 - It saves the note with the current session ID and repo. It works from any directory.
 - Say which issue it belongs to if it matters: `--issue 42` or `--map 10`.
-- Notes are only added, never rewritten. Jotting offline is fine; the note goes out on the next push.
+- Notes are only added, never rewritten. It commits and pushes at once. If the push fails, the note stays local and goes out next time.
 
 ### End of day: `/atc-eod`
 
@@ -134,14 +144,28 @@ Re-running on the same day is safe. The summary and notes are replaced. Your jot
 
 ### Morning: `/atc-start`
 
-It reads only. It prints, per project:
+It is a brief only. It reads, writes nothing, and stops after the brief. It does not ask what to pick up. Per project:
 
-- What each map is for, in plain language.
-- What closed since your last end-of-day, so you remember what you finished.
+- What each map is for, with its progress.
+- What closed since your last end-of-day.
 - What each open issue aims to do, with its number and triage label.
 - Where you left off, the next step, and your jots.
 
-Then it offers to start on one item with its notes loaded.
+### Any time: sync
+
+```
+/atc-sync
+```
+
+Updates the board now. It asks nothing. To preview, run `~/.agents/skills/atc/scripts/atc sync --dry-run`. `/atc add` and `/atc-eod` also sync.
+
+### Any time: report
+
+```
+/atc-report owner/repo
+```
+
+A report on one tracked repo: goal, what changed since you last touched it, what is next, what is still foggy, where you left off. A short name works if it matches one tracked repo. Add `--show-me` to write `./atc-report-<repo>.html`.
 
 ### Any time: status
 
@@ -153,11 +177,11 @@ Shows cards per stage per project, and cards untouched for 7+ days.
 
 ## What shows up on the board
 
-Each card is a small stub issue in your private data repo, titled `[owner/repo#42] Issue title`. It links to the real issue and carries its notes.
+Each card is a small stub issue in your private data repo. Its title is the issue title. The **Source repo** field says which repo it came from. The card links to the real issue and carries its notes.
 
 | Issue | On the board? | Stage |
 |---|---|---|
-| Wayfinder map (`wayfinder:map`) | Yes, with sub-issue progress | Next up |
+| Wayfinder map (`wayfinder:map`) | No. It shows as the **Map** field and progress on its tickets | n/a |
 | Wayfinder ticket, open and not blocked | Yes | Next up |
 | Wayfinder ticket assigned to you | Yes | In progress (Blocked if it has open blockers) |
 | Wayfinder ticket that is blocked, or assigned to someone else | No | n/a |
@@ -191,9 +215,9 @@ This skills repo is public and holds no data. Nobody else sees your data repo.
 | `not set up. Run: atc setup --yes` | Step 4 |
 | `cannot reach owner/repo` | You lack access, or the org needs SSO authorization (Step 2, item 4) |
 | `has GitHub Issues turned off` | Turn Issues on for that repo; ATC needs them |
-| Board is empty after `/atc add` | Run `/atc-eod`, or sync directly: `~/.agents/skills/atc/scripts/atc sync` |
-| `push failed; committed locally` | Fine. The next save pushes it. Check your connection |
-| Board shows columns wrong | Re-check Step 5: Column field must be **Stage** |
+| Board is empty after `/atc add` | Run `/atc-sync` |
+| `push failed; committed locally` | Fine. The next jot, sync or EOD pushes it. Check your connection |
+| Board shows columns wrong | Re-check Step 5: Column field must be **Stage**, Group by **Source repo** |
 
 ## Test
 
@@ -201,4 +225,8 @@ This skills repo is public and holds no data. Nobody else sees your data repo.
 bash tests/run.sh
 ```
 
-Runs the scripts against a fake `gh`. No network, nothing created.
+```bash
+bash tests/report.sh
+```
+
+Run the scripts against a fake `gh`. No network, nothing created.
