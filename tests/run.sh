@@ -177,6 +177,7 @@ check "sync pushes the summary" git --git-dir="$FAKE/remote.git" show main:logs/
 export ATC_DATE=2026-10-17
 echo '[{"number":9,"title":"Done thing","closed_at":"2026-10-16T12:00:00Z"}]' >"$FAKE/issues_closed_org__a.json"
 "$ATC" brief >"$T/o" 2>&1
+check "brief shows map progress" grep -q 'Map #1 Map: parcels: 1 of 4 done' "$T/o"
 check "brief shows jots since last EOD" grep -q 'remember the retry logic' "$T/o"
 check "brief shows state notes" grep -q 'Left off: compared two tile schemes' "$T/o"
 

@@ -15,7 +15,7 @@ Hard rules: never edit or close issues in tracked repos. "Today" is the user's l
 2. **Sessions.** Use `session_store_sql` to find sessions updated today (local day) whose `repository` is a tracked repo, excluding this session. Fetch their `turns` and `checkpoints`. Group by repo.
 3. **Jots.** `$ATC jots` for today's notes. Each has `repo=`, `session=`, and optional `issue=` or `map=`.
 4. **Activity.** `$ATC contributions`. It returns PRs, issues and commit counts, each flagged `tracked`.
-5. **Map to issues, per repo.** Match each session to an issue from issue numbers in its content, its branch, and linked PRs. A jot's `issue=` or `map=` tag overrides your guess. Read issues with `gh issue view` when you need context. Work that matches no issue goes in the repo's inbox.
+5. **Map to issues, per repo.** Match each session to an issue from issue numbers in its content, its branch, and linked PRs. A jot's `issue=` or `map=` tag overrides your guess. Read issues with `gh api repos/<repo>/issues/<n>` and `.../comments` when you need context. Comments hold decisions, so read them. Don't use `gh issue view`: it fails on repos with classic projects. Work that matches no issue goes in the repo's inbox.
 6. **Write state notes.** For each repo you touched, read `~/.atc/data/state/<owner>__<repo>/` first and keep existing sections. Then write with `$ATC state-write owner/repo <name>`, one note per map (`map-<N>`), one for loose issues (`loose`), and one for unmatched work (`inbox`). Format:
 
    ```
