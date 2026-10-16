@@ -76,7 +76,8 @@ cmd_setup() {
   data_commit "atc setup"
 
   echo "Done. Project: https://github.com/users/$user/projects/$n"
-  echo "One manual step: in the project, add a Board view, group it by Stage, and group rows by Repo."
+  echo "Checklist: in the project, add a Board view, group it by Stage, and group rows by Repo."
+  echo "Next: run /atc add owner/repo for each repo to track. It syncs by itself."
 }
 
 cmd_add() {
@@ -96,6 +97,7 @@ cmd_add() {
     data_commit "add $repo"
     echo "Now tracking $repo."
   fi
+  cmd_sync "$repo"
   echo "Labels: $(gh label list -R "$repo" --limit 30 --json name --jq 'map(.name)|join(", ")')"
 }
 

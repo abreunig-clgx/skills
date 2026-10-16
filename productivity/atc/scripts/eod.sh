@@ -58,7 +58,7 @@ cmd_contributions() { # [date]
       | map(. + {tracked: (.repo as $r | $t | index($r) != null)})'
 }
 
-# Write stdin to state/<repo>/<name>.md (no commit; run `atc save`).
+# Write stdin to state/<repo>/<name>.md (no commit; `atc sync` commits).
 cmd_state_write() { # repo name
   load_config
   [ $# -eq 2 ] || die "usage: atc state-write owner/repo name < file"
@@ -74,8 +74,6 @@ cmd_eod_write() { # [date]
   cat >"$DATA_DIR/logs/${1:-$(today)}.md"
   echo "wrote logs/${1:-$(today)}.md"
 }
-
-cmd_save() { load_config; data_commit "${1:-atc update $(today)}"; }
 
 last_eod_date() {
   local f

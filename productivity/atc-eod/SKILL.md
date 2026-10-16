@@ -35,6 +35,6 @@ Hard rules: never edit or close issues in tracked repos. "Today" is the user's l
    - `$ATC stale 7` lists cards untouched for 7+ days.
    - List untracked repos from step 4 and ask whether to add each (`$ATC add`).
    - Show the user a short summary: per repo, left off and next. Ask to confirm with ask_user. Skip the question only with `--force`.
-9. **Publish.** `$ATC save "eod <date>"` then `$ATC sync`. Report counts and the board link.
+9. **Publish.** `$ATC sync`. Report counts and the board link.
 
 Safe to re-run the same day: state and summary are replaced, jots stay.
