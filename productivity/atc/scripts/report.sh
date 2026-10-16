@@ -60,7 +60,7 @@ ticket_detail() { # repo number prs_json
 frontier() { # repo prs_json
   local rows n out="[]" row i=0
   rows=$(cards_for_repo "$1" "$OWNER" | jq -sc '
-    map(select(.is_map|not) | select(.stage=="In progress" or .stage=="Next up"))
+    map(select(.stage=="In progress" or .stage=="Next up"))
     | sort_by(.stage!="In progress") | map({number, title, url, stage, map, triage})')
   while read -r row; do
     [ -n "$row" ] || continue
@@ -71,16 +71,19 @@ frontier() { # repo prs_json
   echo "$out"
 }
 
+# sync no longer makes cards for maps, so read them from the open issues.
 maps() { # repo
   local row
-  cards_for_repo "$1" "$OWNER" | jq -c 'select(.is_map) | {number, title, url, done: (.progress|split("/")[0]|tonumber? // 0), total: (.progress|split("/")[1]|tonumber? // 0)}' \
+  api_list "repos/$1/issues?state=open&per_page=100" | jq -c '
+    .[] | select(has("pull_request")|not) | select(.labels|map(.name)|index("wayfinder:map"))
+    | {number, title, url: .html_url, done: (.sub_issues_summary.completed // 0), total: (.sub_issues_summary.total // 0)}' \
     | while read -r row; do
       jq -c --arg b "$(gh api "repos/$1/issues/$(jq -r .number <<<"$row")" | jq -r '.body // ""')" '. + {body:$b}' <<<"$row"
     done | jq -s .
 }
 
 foggy() { # repo
-  cards_for_repo "$1" "$OWNER" | jq -sc 'map(select(.is_map|not) | select(.triage=="needs-info" or .triage=="needs-triage")) | .[:3] | map({number, title, url})'
+  cards_for_repo "$1" "$OWNER" | jq -sc 'map(select(.triage=="needs-info" or .triage=="needs-triage")) | .[:3] | map({number, title, url})'
 }
 
 repo_state_text() { # repo
