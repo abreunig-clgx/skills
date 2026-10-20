@@ -1,12 +1,12 @@
 ---
-name: atc-jot
-description: Save a quick note tied to the current session so it shows up in the end-of-day retro. Use when the user says "/atc-jot", "jot this", "note for later", or gives a note to remember for a project.
+name: jot
+description: Save a quick note tied to the current session so it shows up in the end-of-day retro and the morning brief. Use when the user says "/jot", "jot this", "note for later", or gives a note to remember for a project.
 ---
 
 Save the user's note with one command. Works from any directory.
 
 ```bash
-~/.agents/skills/atc/scripts/atc jot "the note"
+~/.agents/skills/d2d/scripts/d2d jot "the note"
 ```
 
 The script tags the note with the current session ID and, if the cwd is a git repo, the repo. Optional tags:
@@ -21,4 +21,4 @@ The script tags the note with the current session ID and, if the cwd is a git re
 2. If the conversation is clearly about one issue or map, add `--issue` or `--map`. Don't guess.
 3. Run the command. Confirm in one line with what was saved.
 
-If the script says ATC isn't set up, tell the user to run `/atc`. A failed push is fine: the note is saved locally and goes out next time.
+If the script says d2d isn't set up, tell the user to run `/d2d`. A failed push is fine: the note is saved locally and goes out next time.

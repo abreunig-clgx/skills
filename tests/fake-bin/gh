@@ -17,9 +17,7 @@ next() { # counter name
 }
 
 case "$1 ${2:-}" in
-  "auth status")
-    if [ -n "${FAKE_NO_PROJECT_SCOPE:-}" ]; then echo "Token scopes: 'gist', 'repo'" >&2
-    else echo "  - Token scopes: 'gist', 'project', 'repo'" >&2; fi ;;
+  "auth status") echo "  - Token scopes: 'repo'" >&2 ;;
   "repo view")
     r=$3
     if [ "$r" = noaccess/x ]; then echo "Could not resolve to a Repository" >&2; exit 1; fi
@@ -31,29 +29,6 @@ case "$1 ${2:-}" in
     [ -d "$FAKE/remote.git" ] || git init -q --bare -b main "$FAKE/remote.git"
     git clone -q "$FAKE/remote.git" "$4" 2>/dev/null ;;
   "label list") echo '[{"name":"bug"},{"name":"ready-for-agent"}]' | emit ;;
-  "project list")
-    if [ -f "$FAKE/project" ]; then echo '{"projects":[{"number":7,"title":"ATC"}]}' | emit
-    else echo '{"projects":[]}' | emit; fi ;;
-  "project create") touch "$FAKE/project"; echo '{"number":7}' | emit ;;
-  "project view") echo '{"id":"PID"}' | emit ;;
-  "project field-list")
-    [ -f "$FAKE/fields.json" ] || echo '[]' >"$FAKE/fields.json"
-    jq '{fields: .}' "$FAKE/fields.json" | emit ;;
-  "project field-create")
-    name="" opts=""
-    for ((i = 0; i < ${#args[@]}; i++)); do
-      [ "${args[i]}" = "--name" ] && name="${args[i + 1]}"
-      [ "${args[i]}" = "--single-select-options" ] && opts="${args[i + 1]}"
-    done
-    [ -f "$FAKE/fields.json" ] || echo '[]' >"$FAKE/fields.json"
-    jq --arg n "$name" --arg o "$opts" '. + [{id:("F_"+$n),name:$n,options:(if $o=="" then [] else ($o|split(",")|map({id:("O_"+.),name:.})) end)}]' \
-      "$FAKE/fields.json" >"$FAKE/f.tmp" && mv "$FAKE/f.tmp" "$FAKE/fields.json" ;;
-  "project link") ;;
-  "project item-add") echo "{\"id\":\"ITEM_$(next item)\"}" | emit ;;
-  "project item-edit" | "project item-archive") ;;
-  "issue create")
-    echo "https://github.com/me/me-atc/issues/$(next stub)" ;;
-  "issue edit" | "issue close" | "issue reopen") ;;
   "api user")
     echo '{"login":"me","id":42}' | emit ;;
   "api graphql") emit <"$FAKE/graphql.json" ;;

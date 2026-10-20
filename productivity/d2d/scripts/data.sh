@@ -1,4 +1,4 @@
-# jot, jots, contributions, write helpers, brief, status
+# jot, jots, contributions, and the write helpers used by /eod
 
 cmd_jot() {
   load_config
@@ -13,7 +13,7 @@ cmd_jot() {
     esac
   done
   local note="$*"
-  [ -n "$note" ] || die 'usage: atc jot [--issue N] [--map N] [--repo o/r] "note"'
+  [ -n "$note" ] || die 'usage: d2d jot [--issue N] [--map N] [--repo o/r] "note"'
   [ -n "$repo" ] || repo=$(repo_from_cwd 2>/dev/null || true)
 
   note=${note//$'\n'/ }
@@ -35,7 +35,7 @@ cmd_jots() { # [date]
   [ -f "$f" ] && cat "$f" || true
 }
 
-cmd_projects() { load_config; tracked_repos; }
+cmd_repos() { load_config; tracked_repos; }
 
 # GitHub contributions for one day, flagged tracked or not.
 cmd_contributions() { # [date]
@@ -58,10 +58,10 @@ cmd_contributions() { # [date]
       | map(. + {tracked: (.repo as $r | $t | index($r) != null)})'
 }
 
-# Write stdin to state/<repo>/<name>.md (no commit; `atc sync` commits).
+# Write stdin to state/<repo>/<name>.md (no commit; `d2d publish` commits).
 cmd_state_write() { # repo name
   load_config
-  [ $# -eq 2 ] || die "usage: atc state-write owner/repo name < file"
+  [ $# -eq 2 ] || die "usage: d2d state-write owner/repo name < file"
   local dir="$DATA_DIR/state/$(repo_slug "$1")"
   mkdir -p "$dir"
   cat >"$dir/$2.md"
@@ -75,62 +75,14 @@ cmd_eod_write() { # [date]
   echo "wrote logs/${1:-$(today)}.md"
 }
 
+cmd_publish() {
+  load_config
+  data_commit "d2d update $(today)"
+  echo "Published to $OWNER/$DATA_REPO"
+}
+
 last_eod_date() {
   local f
   f=$(ls "$DATA_DIR"/logs/????-??-??.md 2>/dev/null | tail -1 || true)
   if [ -n "$f" ]; then basename "$f" .md; else date -d "$(today) -7 days" +%F; fi
-}
-
-cmd_stale() { # [days]
-  load_config
-  local cutoff
-  cutoff=$(date -d "$(today) -${1:-7} days" +%F)
-  [ -f "$INDEX" ] && awk -F'\t' -v c="$cutoff" '$7=="open" && $5<c {print $1 "\t" $5 "\t" $6}' "$INDEX" || true
-}
-
-cmd_status() {
-  load_config
-  echo "Last EOD: $(last_eod_date)"
-  local repo
-  for repo in $(tracked_repos); do
-    echo "== $repo"
-    idx_keys_for_repo "$repo" | while read -r k; do idx_get "$k"; done \
-      | awk -F'\t' '$7=="open" {c[$6]++} END {for (s in c) printf "  %s: %d\n", s, c[s]}' | sort
-  done
-  local s
-  s=$(cmd_stale 7)
-  [ -z "$s" ] || { echo "Untouched 7+ days:"; sed 's/^/  /' <<<"$s"; }
-  return 0
-}
-
-# Raw material for the morning brief.
-cmd_brief() {
-  load_config
-  local since repo
-  since=$(last_eod_date)
-  echo "# Brief data (since $since)"
-  for repo in $(tracked_repos); do
-    echo; echo "## $repo"
-    echo "### Closed since $since"
-    gh api "repos/$repo/issues?state=closed&since=${since}T00:00:00Z&per_page=50" \
-      --jq '.[] | select(has("pull_request")|not) | select(.closed_at[:10] >= "'"$since"'") | "- #\(.number) \(.title) (closed \(.closed_at[:10]))"' 2>/dev/null || true
-    echo "### Map progress"
-    open_maps "$repo" 2>/dev/null | jq -r '.[]
-      | "- Map #\(.number) \(.title): \(.done) of \(.total) done"' || true
-    echo "### Board cards"
-    idx_keys_for_repo "$repo" | while read -r k; do
-      awk -F'\t' '$7=="open" {print "- " $1 " [" $6 "]"}' <<<"$(idx_get "$k")"
-    done
-    echo "### State notes"
-    local f
-    for f in "$DATA_DIR/state/$(repo_slug "$repo")"/*.md; do
-      [ -f "$f" ] && { echo "#### $(basename "$f")"; cat "$f"; }
-    done
-  done
-  echo; echo "## Jots since $since"
-  local jf
-  for jf in "$DATA_DIR"/logs/????-??-??.jots.md; do
-    [ -f "$jf" ] || continue
-    [ "$(basename "$jf" .jots.md)" \< "$since" ] || { echo "### $(basename "$jf" .jots.md)"; cat "$jf"; }
-  done
 }

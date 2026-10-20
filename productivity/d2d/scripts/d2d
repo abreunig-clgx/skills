@@ -1,34 +1,34 @@
 #!/usr/bin/env bash
-# atc: cross-project board, jots, end-of-day data. See the atc skills.
+# d2d: day-to-day data for the brief, eod and jot skills. See the d2d skills.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 # shellcheck source=lib.sh
 . "$HERE/lib.sh"
 . "$HERE/setup.sh"
-. "$HERE/eod.sh"
-. "$HERE/sync.sh"
-. "$HERE/report.sh"
+. "$HERE/data.sh"
+. "$HERE/brief.sh"
+. "$HERE/detail.sh"
 
 usage() {
   cat <<'EOF'
-usage: atc <command>
+usage: d2d <command>
 
-  setup [--yes]            create data repo and board (dry run without --yes)
+  setup [--name R] [--dir PATH] [--yes]   create or reuse the data repo (dry run without --yes)
   add <owner/repo>         track a repo
   remove <owner/repo>      stop tracking a repo
-  status                   cards per stage, stale cards
+  status                   data repo, last EOD, tracked repos
+  repos                    list tracked repos
   jot [--issue N] [--map N] [--repo o/r] "note"
   jots [date]              print a day's jots
-  projects                 list tracked repos
   contributions [date]     GitHub activity for a day, flagged tracked or not
   state-write <repo> <name>   write state note from stdin
   eod-write [date]         write the day's summary from stdin
-  sync [owner/repo] [--dry-run]  commit notes, update the board
-  stale [days]             open cards untouched for N days (default 7)
-  brief                    raw data for the morning brief
-  report-data <repo> [--since D] [--last-session D]   facts for one repo (JSON, read-only)
-  report-html <repo>       write ./atc-report-<repo>.html from report text on stdin
+  publish                  commit and push notes
+  brief                    JSON facts for the brief (read-only)
+  detail <repo> [--since D] [--last-session D]   JSON facts for one repo (read-only)
+  html <repo>              write reports/<repo>-<date>.html from report text on stdin
+  commit-report <path>     commit one report to the data repo
 EOF
 }
 
@@ -39,16 +39,16 @@ case "$cmd" in
   add) cmd_add "$@" ;;
   remove) cmd_remove "$@" ;;
   status) cmd_status ;;
+  repos) cmd_repos ;;
   jot) cmd_jot "$@" ;;
   jots) cmd_jots "$@" ;;
-  projects) cmd_projects ;;
   contributions) cmd_contributions "$@" ;;
   state-write) cmd_state_write "$@" ;;
   eod-write) cmd_eod_write "$@" ;;
-  sync) cmd_sync "$@" ;;
-  stale) cmd_stale "$@" ;;
+  publish) cmd_publish ;;
   brief) cmd_brief ;;
-  report-data) cmd_report_data "$@" ;;
-  report-html) cmd_report_html "$@" ;;
+  detail) cmd_detail "$@" ;;
+  html) cmd_html "$@" ;;
+  commit-report) cmd_commit_report "$@" ;;
   *) usage; [ -z "$cmd" ] || exit 1 ;;
 esac
